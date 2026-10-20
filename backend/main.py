@@ -254,9 +254,11 @@ async def lifespan(app: FastAPI):
     # Seed admin user if not exists
     db = SessionLocal()
     try:
-        admin_pw = os.getenv("ADMIN_PASSWORD", "VoiceLinkPBX2026!")
+        admin_pw = os.getenv("ADMIN_PASSWORD", "")
         admin = db.query(User).filter(User.username == "admin").first()
-        if not admin:
+        if not admin_pw:
+            logger.warning("ADMIN_PASSWORD not set - skipping admin seeding/reset")
+        elif not admin:
             admin = User(
                 username="admin",
                 email="admin@voicelinkpbx.local",
@@ -267,11 +269,11 @@ async def lifespan(app: FastAPI):
             db.add(admin)
             db.commit()
             logger.info("Admin user created")
-        else:
-            # Update password to match current ADMIN_PASSWORD env var
+        elif os.getenv("ADMIN_PASSWORD_RESET", "").lower() in ("1", "true", "yes"):
+            # Only reset on explicit request so passwords changed in the GUI survive restarts
             admin.password_hash = get_password_hash(admin_pw)
             db.commit()
-            logger.info("Admin user password synced with ADMIN_PASSWORD env")
+            logger.info("Admin user password reset from ADMIN_PASSWORD env (ADMIN_PASSWORD_RESET)")
         # Migrate: create voicemail mailboxes for existing peers
         peers = db.query(SIPPeer).all()
         created = 0
@@ -371,7 +373,8 @@ app = FastAPI(
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    # Frontend is served same-origin via nginx; list extra origins comma-separated if needed
+    allow_origins=[o.strip() for o in os.getenv("CORS_ORIGINS", "").split(",") if o.strip()],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

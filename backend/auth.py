@@ -3,6 +3,7 @@ Authentication utilities
 JWT token creation/validation and password hashing
 """
 
+import hmac
 import os
 from datetime import datetime, timedelta
 from typing import Optional
@@ -16,7 +17,9 @@ from sqlalchemy.orm import Session
 from database import get_db, User
 
 # Configuration
-JWT_SECRET = os.getenv("JWT_SECRET", "change-me-in-production")
+JWT_SECRET = os.getenv("JWT_SECRET", "")
+if not JWT_SECRET or JWT_SECRET == "change-me-in-production" or len(JWT_SECRET) < 32:
+    raise RuntimeError("JWT_SECRET must be set to a random string of at least 32 characters (see install.sh)")
 JWT_ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_HOURS = 24
 _ha_api_key = os.getenv("HA_API_KEY", "")
@@ -65,7 +68,7 @@ def get_current_user(
 
     # Check X-API-Key header first (for Home Assistant / external integrations)
     api_key = request.headers.get("X-API-Key")
-    if api_key and _ha_api_key and api_key == _ha_api_key:
+    if api_key and _ha_api_key and hmac.compare_digest(api_key, _ha_api_key):
         admin = db.query(User).filter(User.username == "admin").first()
         if admin:
             return admin

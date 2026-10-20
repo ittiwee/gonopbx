@@ -55,3 +55,9 @@ asterisk/config/manager.conf
 .agents/
 AGENT.md
 PROJECT_MEMORY.md
+asterisk/config/pjsip_peers.conf
+
+# Editor/backup leftovers
+*.bak
+*.backup
+*.working
