@@ -68,7 +68,7 @@ def generate_pjsip_config(peers: List[SIPPeer], global_codecs: str = DEFAULT_COD
 [global]
 type=global
 max_forwards=70
-user_agent=GonoPBX {VERSION}
+user_agent=VoiceLinkPBX {VERSION}
 
 [transport-udp]
 type=transport
@@ -89,7 +89,7 @@ bind=0.0.0.0:5060
 [endpoint-basic](!)
 type=endpoint
 context=internal
-language=de
+language=en
 disallow=all
 {allow_lines}
 direct_media=no
@@ -187,7 +187,7 @@ type=endpoint
 outbound_auth=trunk-auth-{tid}
 aors=trunk-aor-{tid}
 context={trunk.context}
-language=de
+language=en
 from_domain={from_domain}{from_user_line}
 disallow=all
 allow={trunk.codecs}
@@ -214,7 +214,7 @@ qualify_frequency=60
 type=endpoint
 aors=trunk-aor-{tid}
 context={trunk.context}
-language=de
+language=en
 from_domain={from_domain}{from_user_line}
 disallow=all
 allow={trunk.codecs}

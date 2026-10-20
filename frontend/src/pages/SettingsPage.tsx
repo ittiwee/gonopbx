@@ -206,7 +206,7 @@ export default function SettingsPage() {
     const trimmed = newIp.trim()
     if (!trimmed) return
     if (whitelistIps.includes(trimmed)) {
-      setError('Diese IP ist bereits in der Liste')
+      setError(tr('Diese IP ist bereits in der Liste', 'This IP is already in the list'))
       return
     }
     setWhitelistIps([...whitelistIps, trimmed])
@@ -249,7 +249,7 @@ export default function SettingsPage() {
       const info = await api.checkUpdate()
       setUpdateInfo(info)
       if (!info.update_available) {
-        setSuccess('GonoPBX ist auf dem neuesten Stand')
+        setSuccess(tr('VoiceLinkPBX ist auf dem neuesten Stand', 'VoiceLinkPBX is up to date'))
       }
     } catch (err: any) {
       setError(err.message || tr('Update-Prüfung fehlgeschlagen', 'Update check failed'))
@@ -259,13 +259,13 @@ export default function SettingsPage() {
   }
 
   const handleRestartService = async (service: string) => {
-    if (!confirm(`Service "${service}" wirklich neu starten?`)) return
+    if (!confirm(tr(`Service "${service}" wirklich neu starten?`, `Really restart service "${service}"?`))) return
     setRestartingService(service)
     setError('')
     setSuccess('')
     try {
       await api.restartService(service)
-      setSuccess(`Service "${service}" wird neu gestartet`)
+      setSuccess(tr(`Service "${service}" wird neu gestartet`, `Service "${service}" is restarting...`))
       setTimeout(fetchServerInfo, 5000)
     } catch (err: any) {
       setError(err.message || tr('Neustart fehlgeschlagen', 'Restart failed'))
@@ -283,7 +283,7 @@ export default function SettingsPage() {
       await api.rebootServer()
       setSuccess(tr('Server wird neu gestartet...', 'Server is rebooting...'))
     } catch (err: any) {
-      setError(err.message || 'Reboot fehlgeschlagen')
+      setError(err.message || tr('Reboot fehlgeschlagen', 'Reboot failed'))
       setRebooting(false)
     }
   }
@@ -383,7 +383,7 @@ export default function SettingsPage() {
       setHaData(prev => ({ ...prev, ha_api_key: result.key }))
       setShowHaApiKey(true)
     } catch (err: any) {
-      setError(err.message || 'Key-Generierung fehlgeschlagen')
+      setError(err.message || tr('Key-Generierung fehlgeschlagen', 'Key generation failed'))
     } finally {
       setGeneratingKey(false)
     }
@@ -1072,7 +1072,7 @@ export default function SettingsPage() {
                   <p>{tr('Verwenden Sie diesen API Key in Ihrer Home Assistant', 'Use this API key in your Home Assistant')} <code className="bg-blue-100 dark:bg-blue-900/50 px-1 rounded">configuration.yaml</code>:</p>
                   <pre className="mt-2 text-xs bg-blue-100 dark:bg-blue-900/50 p-2 rounded font-mono overflow-x-auto">
 {`rest_command:
-  gonopbx_call:
+  voicelink_call:
     url: "https://IHRE-PBX-IP/api/calls/originate"
     method: POST
     headers:
@@ -1088,7 +1088,7 @@ export default function SettingsPage() {
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
             <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-2">{tr('MQTT Echtzeit-Events', 'MQTT real-time events')}</h2>
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-              {tr('GonoPBX publiziert Anruf-Events, Extension- und Trunk-Status per MQTT.', 'GonoPBX publishes call events, extension and trunk status via MQTT.')}
+              {tr('VoiceLinkPBX publiziert Anruf-Events, Extension- und Trunk-Status per MQTT.', 'VoiceLinkPBX publishes call events, extension and trunk status via MQTT.')}
               {' '}
               {tr('Verbinden Sie es mit Ihrem MQTT-Broker (z.B. Mosquitto in Home Assistant).', 'Connect it to your MQTT broker (e.g. Mosquitto in Home Assistant).')}
             </p>
@@ -1369,7 +1369,7 @@ export default function SettingsPage() {
             {updateInfo && !updateInfo.update_available && (
               <div className="flex items-center gap-2 p-3 mb-4 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg">
                 <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
-                <span className="text-sm text-green-800 dark:text-green-300">{tr('GonoPBX', 'GonoPBX')} v{updateInfo.current_version} {tr('ist aktuell', 'is up to date')}</span>
+                <span className="text-sm text-green-800 dark:text-green-300">{tr('VoiceLinkPBX', 'VoiceLinkPBX')} v{updateInfo.current_version} {tr('ist aktuell', 'is up to date')}</span>
               </div>
             )}
 

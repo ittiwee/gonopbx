@@ -282,7 +282,7 @@ def test_mqtt_connection(
     try:
         client = mqtt.Client(
             callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
-            client_id="gonopbx-test",
+            client_id="voicelinkpbx-test",
         )
         if data.user:
             client.username_pw_set(data.user, password)
@@ -714,7 +714,7 @@ def check_update(
     """Check GitHub for a newer release."""
     try:
         url = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
-        req = urllib.request.Request(url, headers={"Accept": "application/vnd.github.v3+json", "User-Agent": "GonoPBX"})
+        req = urllib.request.Request(url, headers={"Accept": "application/vnd.github.v3+json", "User-Agent": "VoiceLinkPBX"})
         resp = urllib.request.urlopen(req, timeout=10)
         data = json.loads(resp.read().decode())
         latest_tag = data.get("tag_name", "").lstrip("v")

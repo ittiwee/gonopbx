@@ -7,7 +7,7 @@ services:
       - "${SIP_PORT:-5060}:5060/udp"
       - "${SIP_PORT:-5060}:5060/tcp"
       - "127.0.0.1:5038:5038/tcp"
-      - "10000-10100:10000-10100/udp"
+      - "10000-10200:10000-10200/udp"
     volumes:
       - ./asterisk/config:/etc/asterisk/custom
       - asterisk_voicemail:/var/spool/asterisk/voicemail

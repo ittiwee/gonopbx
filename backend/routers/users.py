@@ -88,7 +88,7 @@ def create_user(
         password_hash=get_password_hash(user_data.password),
         role=user_data.role,
         full_name=user_data.full_name or user_data.username,
-        email=user_data.email or f"{user_data.username}@gonopbx.local",
+        email=user_data.email or f"{user_data.username}@voicelinkpbx.local",
     )
     db.add(user)
     try:
@@ -219,7 +219,7 @@ def send_welcome(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    if not user.email or user.email.endswith("@gonopbx.local"):
+    if not user.email or user.email.endswith("@voicelinkpbx.local"):
         raise HTTPException(status_code=400, detail="Benutzer hat keine gültige E-Mail-Adresse")
 
     # Load SMTP settings

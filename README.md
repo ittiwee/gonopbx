@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="https://gonopbx.de/logo.png" alt="GonoPBX Logo" width="120">
+  <img src="https://gonopbx.de/logo.png" alt="VoiceLinkPBX Logo" width="120">
 </p>
 
-<h1 align="center">GonoPBX</h1>
+<h1 align="center">VoiceLinkPBX</h1>
 
 <p align="center">
   <strong>Modern Open-Source Web GUI for Asterisk PBX</strong><br>
@@ -30,7 +30,7 @@
 ---
 
 <p align="center">
-  <img src="https://gonopbx.de/dashboard1.png" alt="GonoPBX Dashboard" width="800">
+  <img src="https://gonopbx.de/dashboard1.png" alt="VoiceLinkPBX Dashboard" width="800">
 </p>
 
 ## ✨ Features
@@ -61,7 +61,7 @@
 - **🌙 Dark Mode** – System-wide dark theme with OS preference detection, manual toggle, and localStorage persistence
 - **🔍 SIP Debug** – Live SIP message viewer (INVITE, BYE, 200 OK) with per-call grouping, expandable raw SIP text, and toggle capture (admin-only)
 - **🌐 Multilingual UI (DE/EN)** – Choose German or English during installation; UI is fully translated
-- **🔄 One-Click Updates** – Update GonoPBX directly from the web GUI or via command line
+- **🔄 One-Click Updates** – Update VoiceLinkPBX directly from the web GUI or via command line
 - **🐳 Docker Deployment** – Full system up and running in minutes with `docker compose up`
 
 ## 📸 Screenshots
@@ -285,7 +285,7 @@ This project is open source and available under the [MIT License](LICENSE).
 
 ## ☕ Support
 
-GonoPBX is free and open source. If you find it useful, please consider:
+VoiceLinkPBX is free and open source. If you find it useful, please consider:
 
 - ⭐ **Starring this repository** – it helps with visibility
 - 🐛 **Reporting bugs** or suggesting features via [Issues](https://github.com/ankaios76/gonopbx/issues)

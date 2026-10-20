@@ -50,3 +50,8 @@ logs/
 asterisk/config/pjsip.conf
 asterisk/config/extensions.conf
 asterisk/config/manager.conf
+
+# AI Agent files
+.agents/
+AGENT.md
+PROJECT_MEMORY.md

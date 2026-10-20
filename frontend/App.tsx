@@ -38,7 +38,7 @@ function Sidebar() {
           <Link to="/">
             <img
               src={Logo}
-              alt="GonoPBX"
+              alt="VoiceLinkPBX"
               className="sidebar-logo"
             />
           </Link>

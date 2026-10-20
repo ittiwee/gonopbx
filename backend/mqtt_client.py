@@ -44,14 +44,14 @@ class MQTTPublisher:
         try:
             self.client = mqtt.Client(
                 callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
-                client_id="gonopbx",
+                client_id="voicelinkpbx",
             )
 
             if self.username:
                 self.client.username_pw_set(self.username, self.password)
 
             # Last Will: mark offline if we disconnect unexpectedly
-            self.client.will_set("gonopbx/status", "offline", qos=1, retain=True)
+            self.client.will_set("voicelinkpbx/status", "offline", qos=1, retain=True)
 
             self.client.on_connect = self._on_connect
             self.client.on_disconnect = self._on_disconnect
@@ -70,7 +70,7 @@ class MQTTPublisher:
 
         try:
             # Publish offline status before disconnecting
-            self.client.publish("gonopbx/status", "offline", qos=1, retain=True)
+            self.client.publish("voicelinkpbx/status", "offline", qos=1, retain=True)
             self.client.loop_stop()
             self.client.disconnect()
         except Exception as e:
@@ -83,7 +83,7 @@ class MQTTPublisher:
             self.connected = True
             logger.info("Connected to MQTT broker")
             # Birth message
-            client.publish("gonopbx/status", "online", qos=1, retain=True)
+            client.publish("voicelinkpbx/status", "online", qos=1, retain=True)
         else:
             logger.error(f"MQTT connection failed with code {rc}")
 
@@ -105,10 +105,10 @@ class MQTTPublisher:
         except Exception as e:
             logger.error(f"MQTT publish error on {topic}: {e}")
 
-    # --- Convenience methods for GonoPBX events ---
+    # --- Convenience methods for VoiceLinkPBX events ---
 
     def publish_call_started(self, caller: str, destination: str, direction: str = "internal"):
-        self.publish("gonopbx/call/started", {
+        self.publish("voicelinkpbx/call/started", {
             "caller": caller,
             "destination": destination,
             "direction": direction,
@@ -116,14 +116,14 @@ class MQTTPublisher:
         })
 
     def publish_call_answered(self, caller: str, destination: str):
-        self.publish("gonopbx/call/answered", {
+        self.publish("voicelinkpbx/call/answered", {
             "caller": caller,
             "destination": destination,
             "timestamp": datetime.utcnow().isoformat(),
         })
 
     def publish_call_ended(self, caller: str, destination: str, duration: int, disposition: str):
-        self.publish("gonopbx/call/ended", {
+        self.publish("voicelinkpbx/call/ended", {
             "caller": caller,
             "destination": destination,
             "duration": duration,
@@ -132,10 +132,10 @@ class MQTTPublisher:
         })
 
     def publish_extension_status(self, extension: str, status: str):
-        self.publish(f"gonopbx/extension/{extension}/status", status, retain=True)
+        self.publish(f"voicelinkpbx/extension/{extension}/status", status, retain=True)
 
     def publish_trunk_status(self, trunk_name: str, status: str):
-        self.publish(f"gonopbx/trunk/{trunk_name}/status", status, retain=True)
+        self.publish(f"voicelinkpbx/trunk/{trunk_name}/status", status, retain=True)
 
 
     def reconfigure(self, broker: str, port: int, user: str, password: str):

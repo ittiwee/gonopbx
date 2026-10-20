@@ -130,8 +130,12 @@ function AppContent() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-20">
             {/* Logo */}
-            <div className="flex items-center gap-3">
-              <img src="/logo.png" alt="GonoPBX" className="h-14 w-auto" />
+            <div className="flex items-center gap-3 cursor-pointer" onClick={() => setCurrentPage('dashboard')}>
+              <img src="/logo.png" alt="VoiceLinkPBX" className="h-12 w-auto object-contain rounded-xl shadow-sm" />
+              <div className="hidden sm:block">
+                <div className="font-extrabold text-xl tracking-tight bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 bg-clip-text text-transparent">VoiceLinkPBX</div>
+                <div className="text-[10px] text-gray-400 font-semibold tracking-wider uppercase -mt-0.5">Private Branch Exchange</div>
+              </div>
             </div>
 
             {/* Desktop Navigation */}
@@ -267,7 +271,7 @@ function AppContent() {
 
       {/* Footer */}
       <footer className="text-center py-4 text-xs text-gray-400 dark:text-gray-600">
-        &copy; {new Date().getFullYear()} Norbert Hengsteler. {tr('Alle Rechte vorbehalten.', 'All rights reserved.')} · Made with <span className="text-red-500">❤</span> in Bremen
+        &copy; {new Date().getFullYear()} VoiceLinkPA. {tr('Alle Rechte vorbehalten.', 'All rights reserved.')} · Made with <span className="text-red-500">❤</span> weworknetwork
       </footer>
 
       {/* Password Change Modal */}

@@ -1,8 +1,8 @@
 import { createContext, useContext, useMemo, useState } from 'react'
 
-export type Language = 'de' | 'en'
+export type Language = 'en' | 'de'
 
-const DEFAULT_LANG = (import.meta.env.VITE_UI_LANG as Language) || 'de'
+const DEFAULT_LANG = (import.meta.env.VITE_UI_LANG as Language) || 'en'
 
 type I18nContextValue = {
   lang: Language
@@ -13,12 +13,12 @@ type I18nContextValue = {
 const I18nContext = createContext<I18nContextValue | undefined>(undefined)
 
 export function I18nProvider({ children }: { children: React.ReactNode }) {
-  const [lang, setLang] = useState<Language>(DEFAULT_LANG === 'en' ? 'en' : 'de')
+  const [lang, setLang] = useState<Language>(DEFAULT_LANG === 'de' ? 'de' : 'en')
 
   const value = useMemo<I18nContextValue>(() => ({
     lang,
     setLang,
-    tr: (de: string, en: string) => (lang === 'en' ? en : de),
+    tr: (de: string, en: string) => (lang === 'de' ? de : en),
   }), [lang])
 
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>

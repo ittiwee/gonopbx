@@ -32,7 +32,7 @@ function Sidebar() {
     <nav className="sidebar">
       <div className="sidebar-header">
         <Link to="/" className="logo">
-          <img src={Logo} alt="GonoPBX" className="sidebar-logo" />
+          <img src={Logo} alt="VoiceLinkPBX" className="sidebar-logo" />
         </Link>
         <p className="version">v0.1.0</p>
       </div>

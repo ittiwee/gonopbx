@@ -254,12 +254,12 @@ async def lifespan(app: FastAPI):
     # Seed admin user if not exists
     db = SessionLocal()
     try:
-        admin_pw = os.getenv("ADMIN_PASSWORD", "GonoPBX2026!")
+        admin_pw = os.getenv("ADMIN_PASSWORD", "VoiceLinkPBX2026!")
         admin = db.query(User).filter(User.username == "admin").first()
         if not admin:
             admin = User(
                 username="admin",
-                email="admin@gonopbx.local",
+                email="admin@voicelinkpbx.local",
                 password_hash=get_password_hash(admin_pw),
                 full_name="Administrator",
                 role="admin",

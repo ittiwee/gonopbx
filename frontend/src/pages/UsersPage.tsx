@@ -255,7 +255,7 @@ export default function UsersPage() {
       }
 
       // Send welcome email (best-effort)
-      if (formData.email && !formData.email.endsWith('@gonopbx.local')) {
+      if (formData.email && !formData.email.endsWith('@voicelinkpbx.local')) {
         try {
           await api.sendWelcomeEmail(newUser.id, formData.password)
         } catch {

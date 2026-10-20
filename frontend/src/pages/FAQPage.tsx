@@ -14,7 +14,7 @@ const faqSectionsDe: { title: string; items: FAQItem[] }[] = [
     items: [
       {
         question: 'Wie melde ich mich an?',
-        answer: 'Öffnen Sie die GonoPBX-Weboberfläche in Ihrem Browser und geben Sie Ihren Benutzernamen und Ihr Passwort ein. Die Zugangsdaten erhalten Sie von Ihrem Administrator.',
+        answer: 'Öffnen Sie die VoiceLinkPBX-Weboberfläche in Ihrem Browser und geben Sie Ihren Benutzernamen und Ihr Passwort ein. Die Zugangsdaten erhalten Sie von Ihrem Administrator.',
       },
       {
         question: 'Wie ändere ich mein Passwort?',
@@ -35,7 +35,7 @@ const faqSectionsDe: { title: string; items: FAQItem[] }[] = [
       },
       {
         question: 'Welche Telefone und Softphones werden unterstützt?',
-        answer: 'GonoPBX ist kompatibel mit allen SIP-fähigen Geräten. Dazu gehören Hardware-Telefone von Yealink, Snom, Grandstream, Poly u.a. sowie Softphones wie MicroSIP (Windows), Linphone (alle Plattformen) oder Othe Othe Othe Othe Othe Othe Zoiper.',
+        answer: 'VoiceLinkPBX ist kompatibel mit allen SIP-fähigen Geräten. Dazu gehören Hardware-Telefone von Yealink, Snom, Grandstream, Poly u.a. sowie Softphones wie MicroSIP (Windows), Linphone (alle Plattformen) oder Othe Othe Othe Othe Othe Othe Zoiper.',
       },
       {
         question: 'Mein Telefon registriert sich nicht – was kann ich tun?',
@@ -84,12 +84,12 @@ const faqSectionsDe: { title: string; items: FAQItem[] }[] = [
         answer: 'Unter Einstellungen → E-Mail können Sie den SMTP-Server konfigurieren. Dieser wird für Willkommens-E-Mails an neue Benutzer und Voicemail-Benachrichtigungen verwendet.',
       },
       {
-        question: 'Wie aktualisiere ich GonoPBX?',
+        question: 'Wie aktualisiere ich VoiceLinkPBX?',
         answer: 'Am einfachsten über das Webinterface: Einstellungen → Server → Update → "Update installieren". Alternativ manuell per SSH: git pull origin main && docker compose up -d --build. Die Datenbank-Migrationen laufen automatisch beim Start.',
       },
       {
-        question: 'Wie verbinde ich GonoPBX mit Home Assistant?',
-        answer: 'Unter Einstellungen → Home Assistant können Sie die Integration aktivieren. Tragen Sie den MQTT-Broker ein und generieren Sie einen API-Key. GonoPBX sendet dann Anruf-Events per MQTT und stellt Sensoren für Nebenstellen, Trunks und aktive Anrufe bereit.',
+        question: 'Wie verbinde ich VoiceLinkPBX mit Home Assistant?',
+        answer: 'Unter Einstellungen → Home Assistant können Sie die Integration aktivieren. Tragen Sie den MQTT-Broker ein und generieren Sie einen API-Key. VoiceLinkPBX sendet dann Anruf-Events per MQTT und stellt Sensoren für Nebenstellen, Trunks und aktive Anrufe bereit.',
       },
     ],
   },
@@ -101,7 +101,7 @@ const faqSectionsEn: { title: string; items: FAQItem[] }[] = [
     items: [
       {
         question: 'How do I sign in?',
-        answer: 'Open the GonoPBX web interface in your browser and enter your username and password. You will receive your credentials from your administrator.',
+        answer: 'Open the VoiceLinkPBX web interface in your browser and enter your username and password. You will receive your credentials from your administrator.',
       },
       {
         question: 'How do I change my password?',
@@ -122,7 +122,7 @@ const faqSectionsEn: { title: string; items: FAQItem[] }[] = [
       },
       {
         question: 'Which phones and softphones are supported?',
-        answer: 'GonoPBX is compatible with all SIP-capable devices. This includes hardware phones from Yealink, Snom, Grandstream, Poly, etc., and softphones like MicroSIP (Windows), Linphone (all platforms) or Zoiper.',
+        answer: 'VoiceLinkPBX is compatible with all SIP-capable devices. This includes hardware phones from Yealink, Snom, Grandstream, Poly, etc., and softphones like MicroSIP (Windows), Linphone (all platforms) or Zoiper.',
       },
       {
         question: 'My phone won’t register — what can I do?',
@@ -171,12 +171,12 @@ const faqSectionsEn: { title: string; items: FAQItem[] }[] = [
         answer: 'Under Settings → Email you can configure the SMTP server. It is used for welcome emails and voicemail notifications.',
       },
       {
-        question: 'How do I update GonoPBX?',
+        question: 'How do I update VoiceLinkPBX?',
         answer: 'Easiest via the web UI: Settings → Server → Update → "Install update". Alternatively via SSH: git pull origin main && docker compose up -d --build. Database migrations run automatically on startup.',
       },
       {
-        question: 'How do I connect GonoPBX to Home Assistant?',
-        answer: 'Under Settings → Home Assistant you can enable the integration. Enter the MQTT broker and generate an API key. GonoPBX will send call events via MQTT and provide sensors for extensions, trunks and active calls.',
+        question: 'How do I connect VoiceLinkPBX to Home Assistant?',
+        answer: 'Under Settings → Home Assistant you can enable the integration. Enter the MQTT broker and generate an API key. VoiceLinkPBX will send call events via MQTT and provide sensors for extensions, trunks and active calls.',
       },
     ],
   },

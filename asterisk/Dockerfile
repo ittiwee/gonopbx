@@ -3,7 +3,7 @@ FROM andrius/asterisk:20
 USER root
 RUN apt-get update && apt-get install -y msmtp msmtp-mta ca-certificates tzdata asterisk-prompt-de && rm -rf /var/lib/apt/lists/* \
     && ln -sf /usr/share/asterisk/sounds/de /var/lib/asterisk/sounds/de
-ENV TZ=Europe/Berlin
+ENV TZ=Asia/Bangkok
 
 # Copy pre-downloaded Asterisk core sounds (English)
 COPY sounds/en/ /var/lib/asterisk/sounds/en/

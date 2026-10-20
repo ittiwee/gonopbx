@@ -30,7 +30,7 @@ export default function LoginPage() {
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8">
           {/* Logo */}
           <div className="flex justify-center mb-8">
-            <img src="/logo.png" alt="GonoPBX" className="h-16 w-auto" />
+            <img src="/logo.png" alt="VoiceLinkPBX" className="h-16 w-auto" />
           </div>
 
           <h2 className="text-center text-2xl font-bold text-gray-800 dark:text-gray-200 mb-6">
@@ -86,7 +86,7 @@ export default function LoginPage() {
         </div>
 
         <p className="text-center text-gray-400 dark:text-gray-600 text-xs mt-6">
-          {tr('GonoPBX Telefonanlage', 'GonoPBX PBX')}
+          {tr('VoiceLinkPBX Telefonanlage', 'VoiceLinkPBX PBX')}
         </p>
       </div>
     </div>

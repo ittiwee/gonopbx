@@ -1,6 +1,7 @@
 """
 Dialplan (extensions.conf) Generator
-Generates from-trunk context for inbound DID routing
+Customized for VoiceLinkPBX Thailand Telecom & International Standards
+Handles internal calling, outbound routing, call forwarding, IVR, ring groups, and inbound DID routing
 """
 import os
 import logging
@@ -24,9 +25,9 @@ def _build_forward_map(forwards: List[CallForward]) -> dict:
 
 
 def _generate_dial_logic(extension: str, fwd_map: dict, ring_time: int = 30, early_answer: bool = False) -> str:
-    """Generate dial logic for an extension with optional call forwarding.
-    early_answer: if True, Answer() the channel before Dial() to stabilize
-    the SIP dialog for inbound trunk calls (prevents provider BYE race condition).
+    """Generate dial logic for an extension with call forwarding support.
+    Forwards route cleanly through Goto(internal,${destination},1) which supports
+    both internal extensions and external mobile/landline numbers without hardcoded trunk names.
     """
     forwards = fwd_map.get(extension, {})
     cfu = forwards.get("unconditional")
@@ -35,22 +36,22 @@ def _generate_dial_logic(extension: str, fwd_map: dict, ring_time: int = 30, ear
 
     lines = []
 
-    # Unconditional forward - skip dialing the extension entirely
+    # Unconditional forward (CFU) - skip dialing extension entirely
     if cfu:
         lines.append(f' same => n,NoOp(CFU active: forwarding to {cfu.destination})')
         if early_answer:
             lines.append(f' same => n,Answer()')
             lines.append(f' same => n,Wait(0.5)')
-        lines.append(f' same => n,Dial(PJSIP/{cfu.destination}@trunk,{ring_time},tT)')
+        lines.append(f' same => n,Goto(internal,{cfu.destination},1)')
         lines.append(f' same => n,Hangup()')
         return "\n".join(lines)
 
-    # Answer early for inbound trunk calls to prevent provider BYE race condition
+    # Early answer for inbound trunk calls to prevent provider BYE race condition
     if early_answer:
         lines.append(f' same => n,Answer()')
         lines.append(f' same => n,Wait(0.5)')
 
-    # Check if device is reachable before dialing - if not, go straight to voicemail
+    # Check if device is reachable before dialing - if offline, jump straight to voicemail
     actual_ring = cfna.ring_time if cfna else ring_time
     lines.append(f' same => n,Set(DEVICE_STATE=${{DEVICE_STATE(PJSIP/{extension})}})')
     lines.append(f' same => n,GotoIf($["${{DEVICE_STATE}}" = "UNAVAILABLE"]?unavail)')
@@ -60,11 +61,11 @@ def _generate_dial_logic(extension: str, fwd_map: dict, ring_time: int = 30, ear
     if cfb and cfna:
         lines.append(f' same => n,GotoIf($["${{DIALSTATUS}}" = "BUSY"]?busy:noanswer)')
         lines.append(f' same => n(noanswer),NoOp(CFNA: forwarding to {cfna.destination})')
-        lines.append(f' same => n,Dial(PJSIP/{cfna.destination}@trunk,30,tT)')
+        lines.append(f' same => n,Goto(internal,{cfna.destination},1)')
         lines.append(f' same => n,VoiceMail({extension}@default,u)')
         lines.append(f' same => n,Hangup()')
         lines.append(f' same => n(busy),NoOp(CFB: forwarding to {cfb.destination})')
-        lines.append(f' same => n,Dial(PJSIP/{cfb.destination}@trunk,30,tT)')
+        lines.append(f' same => n,Goto(internal,{cfb.destination},1)')
         lines.append(f' same => n,VoiceMail({extension}@default,b)')
         lines.append(f' same => n,Hangup()')
     elif cfb:
@@ -72,19 +73,19 @@ def _generate_dial_logic(extension: str, fwd_map: dict, ring_time: int = 30, ear
         lines.append(f' same => n(unavail),VoiceMail({extension}@default,u)')
         lines.append(f' same => n,Hangup()')
         lines.append(f' same => n(busy),NoOp(CFB: forwarding to {cfb.destination})')
-        lines.append(f' same => n,Dial(PJSIP/{cfb.destination}@trunk,30,tT)')
+        lines.append(f' same => n,Goto(internal,{cfb.destination},1)')
         lines.append(f' same => n,VoiceMail({extension}@default,b)')
         lines.append(f' same => n,Hangup()')
     elif cfna:
         lines.append(f' same => n,GotoIf($["${{DIALSTATUS}}" = "BUSY"]?busy:noanswer)')
         lines.append(f' same => n(noanswer),NoOp(CFNA: forwarding to {cfna.destination})')
-        lines.append(f' same => n,Dial(PJSIP/{cfna.destination}@trunk,30,tT)')
+        lines.append(f' same => n,Goto(internal,{cfna.destination},1)')
         lines.append(f' same => n,VoiceMail({extension}@default,u)')
         lines.append(f' same => n,Hangup()')
         lines.append(f' same => n(busy),VoiceMail({extension}@default,b)')
         lines.append(f' same => n,Hangup()')
     else:
-        # No forwarding - standard behavior
+        # Standard behavior
         lines.append(f' same => n,GotoIf($["${{DIALSTATUS}}" = "BUSY"]?busy:unavail)')
         lines.append(f' same => n(unavail),VoiceMail({extension}@default,u)')
         lines.append(f' same => n,Hangup()')
@@ -94,16 +95,19 @@ def _generate_dial_logic(extension: str, fwd_map: dict, ring_time: int = 30, ear
     return "\n".join(lines)
 
 
-def _build_outbound_map(routes: List[InboundRoute], peers: Optional[List[SIPPeer]] = None) -> dict:
-    """Build a dict: extension -> {route, did, pai} for outbound calling.
-    Uses peer.outbound_cid if set, otherwise falls back to first route's DID."""
-    # Build peer lookup
+def _build_outbound_map(
+    routes: List[InboundRoute],
+    peers: Optional[List[SIPPeer]] = None,
+    trunks: Optional[List[SIPTrunk]] = None
+) -> dict:
+    """Build a mapping of extension -> outbound configuration.
+    Decoupled from Inbound Routes: any active extension can dial out via the company default trunk
+    even if it does not have a dedicated inbound DID assigned."""
     peer_map = {}
     if peers:
         for p in peers:
             peer_map[p.extension] = p
 
-    # Build routes-per-extension
     routes_by_ext: dict = {}
     for route in routes:
         ext = route.destination_extension
@@ -111,20 +115,45 @@ def _build_outbound_map(routes: List[InboundRoute], peers: Optional[List[SIPPeer
             routes_by_ext[ext] = []
         routes_by_ext[ext].append(route)
 
+    # Detect fallback default trunk
+    default_trunk = None
+    if trunks:
+        for t in trunks:
+            if t.enabled:
+                default_trunk = t
+                break
+
     outbound: dict = {}
-    for ext, ext_routes in routes_by_ext.items():
+    all_extensions = set(routes_by_ext.keys())
+    if peers:
+        for p in peers:
+            if p.enabled:
+                all_extensions.add(p.extension)
+
+    for ext in all_extensions:
         peer = peer_map.get(ext)
-        # Determine outbound DID: peer.outbound_cid if set and valid, else first route
-        selected_route = ext_routes[0]
-        if peer and peer.outbound_cid:
-            for r in ext_routes:
-                if r.did == peer.outbound_cid:
-                    selected_route = r
-                    break
-        outbound[ext] = {
-            "route": selected_route,
-            "pai": peer.pai if peer else None,
-        }
+        ext_routes = routes_by_ext.get(ext, [])
+        if ext_routes:
+            selected_route = ext_routes[0]
+            if peer and peer.outbound_cid:
+                for r in ext_routes:
+                    if r.did == peer.outbound_cid:
+                        selected_route = r
+                        break
+            outbound[ext] = {
+                "trunk_id": selected_route.trunk_id,
+                "did": selected_route.did,
+                "pai": peer.pai if peer else None,
+            }
+        elif default_trunk:
+            # Fallback to default trunk for extensions without dedicated DID
+            caller_id_val = (peer.caller_id if peer and peer.caller_id else None) or default_trunk.caller_id or default_trunk.username or ext
+            outbound[ext] = {
+                "trunk_id": default_trunk.id,
+                "did": caller_id_val,
+                "pai": peer.pai if peer else None,
+            }
+
     return outbound
 
 
@@ -134,7 +163,7 @@ def _build_ring_timeout_map(mailboxes: List[VoicemailMailbox]) -> dict:
 
 
 def _generate_ring_group_logic(group: RingGroup) -> str:
-    """Generate dial logic for a ring group (queue)."""
+    """Generate dial logic for a ring group queue"""
     queue_name = f"rg_{group.id}"
     ring_time = group.ring_time or 20
     lines = []
@@ -144,9 +173,10 @@ def _generate_ring_group_logic(group: RingGroup) -> str:
 
 
 def _generate_ivr_context(menu: IVRMenu) -> str:
+    """Generate IVR menu dialplan context"""
     ctx = f"[ivr-{menu.id}]\n"
-    ctx += "exten => s,1,NoOp(IVR Menu)\n"
-    ctx += " same => n,Set(IVR_TRIES=${IF($[\"${IVR_TRIES}\"=\"\"]?0:${IVR_TRIES})})\n"
+    ctx += "exten => s,1,NoOp(IVR Menu: " + menu.name + ")\n"
+    ctx += ' same => n,Set(IVR_TRIES=${IF($["${IVR_TRIES}"=""]?0:${IVR_TRIES})})\n'
     ctx += f" same => n,Set(IVR_MAX={menu.retries or 0})\n"
     ctx += " same => n,Answer()\n"
     ctx += " same => n,Wait(0.5)\n"
@@ -177,13 +207,20 @@ def _generate_ivr_context(menu: IVRMenu) -> str:
     return ctx
 
 
-def generate_extensions_config(routes: List[InboundRoute], forwards: Optional[List[CallForward]] = None, mailboxes: Optional[List[VoicemailMailbox]] = None, peers: Optional[List[SIPPeer]] = None, trunks: Optional[List[SIPTrunk]] = None, ring_groups: Optional[List[RingGroup]] = None, ivr_menus: Optional[List[IVRMenu]] = None) -> str:
-    """Generate extensions.conf with internal context, outbound routing, call forwarding, and from-trunk inbound routing"""
+def generate_extensions_config(
+    routes: List[InboundRoute],
+    forwards: Optional[List[CallForward]] = None,
+    mailboxes: Optional[List[VoicemailMailbox]] = None,
+    peers: Optional[List[SIPPeer]] = None,
+    trunks: Optional[List[SIPTrunk]] = None,
+    ring_groups: Optional[List[RingGroup]] = None,
+    ivr_menus: Optional[List[IVRMenu]] = None
+) -> str:
+    """Generate complete extensions.conf supporting Thailand and international telephony standards"""
 
     fwd_map = _build_forward_map(forwards or [])
-    outbound_map = _build_outbound_map(routes, peers)
+    outbound_map = _build_outbound_map(routes, peers, trunks)
 
-    # Build trunk lookup for PAI domain
     trunk_map = {}
     if trunks:
         for t in trunks:
@@ -191,7 +228,7 @@ def generate_extensions_config(routes: List[InboundRoute], forwards: Optional[Li
     ring_timeout_map = _build_ring_timeout_map(mailboxes or [])
 
     config = """; Auto-generated dialplan configuration
-; Generated by Asterisk PBX GUI
+; Generated by VoiceLinkPBX (Thailand & International Edition)
 
 [general]
 static=yes
@@ -201,21 +238,13 @@ clearglobalvars=no
 [globals]
 
 [internal]
-; Internal Extension Dialing (PJSIP)
+; === Internal Extension Dialing ===
 """
-    # Build ring group map
+    # Ring groups
     ring_group_map = {}
     if ring_groups:
         for g in ring_groups:
             ring_group_map[g.extension] = g
-    ivr_map = {}
-    if ivr_menus:
-        for m in ivr_menus:
-            ivr_map[m.extension] = m
-
-    # Ring groups (exact extensions)
-    if ring_groups:
-        for g in ring_groups:
             if not g.enabled:
                 continue
             config += f"exten => {g.extension},1,NoOp(Ring Group {g.name})\n"
@@ -223,131 +252,128 @@ clearglobalvars=no
             config += _generate_ring_group_logic(g)
             config += "\n\n"
 
-    # IVR menus (exact extensions)
+    # IVR menus
+    ivr_map = {}
     if ivr_menus:
         for m in ivr_menus:
+            ivr_map[m.extension] = m
             if not m.enabled:
                 continue
             config += f"exten => {m.extension},1,NoOp(IVR {m.name})\n"
             config += f" same => n,Goto(ivr-{m.id},s,1)\n\n"
 
-    # Internal extension dialing pattern
-    config += "exten => _1XXX,1,NoOp(Internal Call from ${CALLERID(all)} to ${EXTEN})\n"
-    config += " same => n,Set(CALLERID(name)=${CALLERID(name)})\n"
     # BLF hints for peers
     if peers:
+        config += "; Busy Lamp Field (BLF) Hints\n"
         for p in peers:
             try:
                 if p.enabled and getattr(p, "blf_enabled", True):
                     config += f"exten => {p.extension},hint,PJSIP/{p.extension}\n"
             except Exception:
                 continue
-    # Collect extensions that need per-extension overrides (forwarding or custom ring_timeout)
+        config += "\n"
+
+    # Match internal 3-digit and 4-digit extension ranges
+    config += "; Match 3-digit extensions (100-899)\n"
+    config += "exten => _[1-8]XX,1,NoOp(Internal Call to ${EXTEN})\n"
+    config += " same => n,Set(CALLERID(name)=${CALLERID(name)})\n"
+    config += _generate_dial_logic("${EXTEN}", {}, 20)
+    config += "\n\n"
+
+    config += "; Match 4-digit extensions (1000-8999)\n"
+    config += "exten => _[1-8]XXX,1,NoOp(Internal Call to ${EXTEN})\n"
+    config += " same => n,Set(CALLERID(name)=${CALLERID(name)})\n"
+    config += _generate_dial_logic("${EXTEN}", {}, 20)
+    config += "\n\n"
+
+    # Collect extensions that need per-extension custom rules (call forward or custom timeout)
     override_extensions = set(fwd_map.keys())
     for ext, timeout in ring_timeout_map.items():
         if timeout != 20:
             override_extensions.add(ext)
 
-    # Add forwarding logic for internal calls (default ring_timeout 20s)
-    config += _generate_dial_logic("${EXTEN}", {}, 20)
-    config += "\n\n"
-
-    # Generate per-extension overrides
     for ext in sorted(override_extensions):
         ext_ring = ring_timeout_map.get(ext, 20)
-        config += f"; Extension {ext} - custom rules\n"
-        config += f"exten => {ext},1,NoOp(Call to {ext} with forwarding)\n"
+        config += f"; Extension {ext} - Custom Forwarding/Timeout\n"
+        config += f"exten => {ext},1,NoOp(Call to {ext} with custom routing)\n"
         config += f" same => n,Set(CALLERID(name)=${{CALLERID(name)}})\n"
         config += _generate_dial_logic(ext, fwd_map, ext_ring)
         config += "\n\n"
 
-    # === Outbound calling ===
+    # === Outbound Calling Triggers ===
     if outbound_map:
-        config += "; === Outbound calling via assigned trunks ===\n"
-        # Match external numbers: 0X. (national/international German dialing)
-        config += "exten => _0X.,1,NoOp(Outbound call from ${CHANNEL(endpoint)} to ${EXTEN})\n"
-        for ext in outbound_map:
-            config += f' same => n,GotoIf($["${{CHANNEL(endpoint)}}x" = "{ext}x"]?out-{ext})\n'
-        config += " same => n,NoOp(No outbound route for this extension)\n"
-        config += " same => n,Playback(ss-noservice)\n"
-        config += " same => n,Hangup()\n"
-        for ext, info in outbound_map.items():
-            route = info["route"]
-            pai = info["pai"]
-            tid = route.trunk_id
-            trunk = trunk_map.get(tid)
-            config += f"\n same => n(out-{ext}),NoOp(Outbound via trunk-ep-{tid} with CID {route.did})\n"
-            if trunk and trunk.provider == "telekom_allip":
-                # Telekom All-IP: CallerID must be the Anschlussnummer (from_user), not the DID
-                allip_num = getattr(trunk, "from_user", None) or route.did
-                config += f" same => n,Set(CALLERID(num)={allip_num})\n"
-                config += f" same => n,Set(PJSIP_HEADER(add,P-Preferred-Identity)=<sip:{allip_num}@tel.t-online.de>)\n"
-            else:
-                config += f" same => n,Set(CALLERID(num)={route.did})\n"
-                if pai:
-                    pai_domain = trunk.sip_server if trunk else "localhost"
-                    config += f" same => n,Set(PJSIP_HEADER(add,P-Asserted-Identity)=<sip:{pai}@{pai_domain}>)\n"
-            config += f" same => n,Dial(PJSIP/${{EXTEN}}@trunk-ep-{tid},120,tT)\n"
-            config += f" same => n,Hangup()\n"
+        config += "; === Outbound Calling Rules ===\n"
+        # Match Thailand national numbers (02 Bangkok, 03-07 Provincial, 06/08/09 Mobile, 00 International)
+        config += "exten => _0X.,1,Goto(outbound-routing,${EXTEN},1)\n"
+        # Match E.164 International with +
+        config += "exten => _+X.,1,Goto(outbound-routing,${EXTEN},1)\n"
+        # Match Thailand Emergency & Short Codes (191, 1669, 199, 1155, 1133)
+        for short_code in ["191", "1669", "199", "1155", "1133"]:
+            config += f"exten => {short_code},1,Goto(outbound-routing,${{EXTEN}},1)\n"
         config += "\n"
 
-        # Also match + prefixed numbers (international with +)
-        config += "; International with + prefix\n"
-        config += "exten => _+X.,1,NoOp(Outbound intl call from ${CHANNEL(endpoint)} to ${EXTEN})\n"
-        for ext in outbound_map:
-            config += f' same => n,GotoIf($["${{CHANNEL(endpoint)}}x" = "{ext}x"]?out-{ext})\n'
-        config += " same => n,Playback(ss-noservice)\n"
-        config += " same => n,Hangup()\n"
-        for ext, info in outbound_map.items():
-            route = info["route"]
-            pai = info["pai"]
-            tid = route.trunk_id
-            trunk = trunk_map.get(tid)
-            config += f"\n same => n(out-{ext}),NoOp(Outbound via trunk-ep-{tid} with CID {route.did})\n"
-            if trunk and trunk.provider == "telekom_allip":
-                allip_num = getattr(trunk, "from_user", None) or route.did
-                config += f" same => n,Set(CALLERID(num)={allip_num})\n"
-                config += f" same => n,Set(PJSIP_HEADER(add,P-Preferred-Identity)=<sip:{allip_num}@tel.t-online.de>)\n"
-            else:
-                config += f" same => n,Set(CALLERID(num)={route.did})\n"
-                if pai:
-                    pai_domain = trunk.sip_server if trunk else "localhost"
-                    config += f" same => n,Set(PJSIP_HEADER(add,P-Asserted-Identity)=<sip:{pai}@{pai_domain}>)\n"
-            config += f" same => n,Dial(PJSIP/${{EXTEN}}@trunk-ep-{tid},120,tT)\n"
-            config += f" same => n,Hangup()\n"
-        config += "\n"
-
-    config += """; Voicemail access - dial *98 to check voicemail
+    # Feature Codes
+    config += """; Feature Codes
+; Voicemail main access - dial *98
 exten => *98,1,NoOp(Voicemail Access for ${CALLERID(num)})
  same => n,Answer()
  same => n,Wait(0.5)
  same => n,VoiceMailMain(${CALLERID(num)}@default)
  same => n,Hangup()
 
-; Voicemail direct - dial *97 + extension
+; Direct Voicemail access - dial *97 + extension
+exten => _*97XXX,1,NoOp(Direct Voicemail for ${EXTEN:3})
+ same => n,Answer()
+ same => n,Wait(0.5)
+ same => n,VoiceMail(${EXTEN:3}@default)
+ same => n,Hangup()
+
 exten => _*97XXXX,1,NoOp(Direct Voicemail for ${EXTEN:3})
  same => n,Answer()
  same => n,Wait(0.5)
  same => n,VoiceMail(${EXTEN:3}@default)
  same => n,Hangup()
 
-; Call Pickup (Gruppen)
+; Call Pickup (*8)
 exten => *8,1,NoOp(Call Pickup)
  same => n,Pickup()
  same => n,Hangup()
 
-; Echo test
+; Echo test (*43)
 exten => *43,1,Answer()
  same => n,Echo()
  same => n,Hangup()
 
-[from-trunk]
-; Inbound DID routing - auto-generated
 """
 
-    # Handler for providers that send DID only in To header (no user in Request-URI)
-    config += """
-; Extract DID from To header when Request-URI has no user part
+    # Outbound Routing Context
+    if outbound_map:
+        config += "[outbound-routing]\n"
+        config += "exten => _.,1,NoOp(Outbound call from ${CHANNEL(endpoint)} to ${EXTEN})\n"
+        for ext in outbound_map:
+            config += f' same => n,GotoIf($["${{CHANNEL(endpoint)}}x" = "{ext}x"]?out-{ext})\n'
+        config += " same => n,NoOp(No outbound route configured for ${CHANNEL(endpoint)})\n"
+        config += " same => n,Playback(ss-noservice)\n"
+        config += " same => n,Hangup()\n\n"
+
+        for ext, info in outbound_map.items():
+            tid = info["trunk_id"]
+            did = info["did"]
+            pai = info["pai"]
+            trunk = trunk_map.get(tid)
+            config += f"; Outbound path for extension {ext}\n"
+            config += f"exten => _.,n(out-{ext}),NoOp(Outbound via trunk-ep-{tid} with CallerID {did})\n"
+            config += f" same => n,Set(CALLERID(num)={did})\n"
+            if pai:
+                pai_domain = trunk.sip_server if trunk else "localhost"
+                config += f" same => n,Set(PJSIP_HEADER(add,P-Asserted-Identity)=<sip:{pai}@{pai_domain}>)\n"
+            config += f" same => n,Dial(PJSIP/${{EXTEN}}@trunk-ep-{tid},120,tT)\n"
+            config += " same => n,Hangup()\n\n"
+
+    # Inbound DID Routing
+    config += """[from-trunk]
+; Inbound DID routing
+; Fallback for providers that send DID in To header instead of Request-URI
 exten => s,1,NoOp(Inbound call with no DID in Request-URI)
  same => n,Set(TO_HDR=${PJSIP_HEADER(read,To)})
  same => n,Set(DID=${CUT(CUT(TO_HDR,@,1),:,2)})
@@ -365,7 +391,6 @@ exten => s,1,NoOp(Inbound call with no DID in Request-URI)
             config += f"\n; {desc}\n"
             config += f"exten => {route.did},1,NoOp(Inbound call to DID {route.did})\n"
             config += f" same => n,Set(CALLERID(name)=${{CALLERID(name)}})\n"
-            # If destination is a ring group, route to queue
             rg = ring_group_map.get(ext)
             ivr = ivr_map.get(ext)
             if ivr and ivr.enabled:
@@ -387,35 +412,38 @@ exten => _X.,1,NoOp(Unrouted inbound call to ${EXTEN})
  same => n,Hangup()
 """
 
-    # Catch-all for unmatched DIDs
     config += """
 ; Catch-all for unmatched inbound calls
 exten => _[+0-9].,1,NoOp(Unmatched inbound DID ${EXTEN})
  same => n,Hangup()
 """
 
-    # Append IVR contexts
+    # IVR contexts
     if ivr_menus:
         for m in ivr_menus:
             if m.enabled:
-                config += _generate_ivr_context(m)
+                config += "\n" + _generate_ivr_context(m)
 
     return config
 
 
-def write_extensions_config(routes: List[InboundRoute], forwards: Optional[List[CallForward]] = None, mailboxes: Optional[List[VoicemailMailbox]] = None, peers: Optional[List[SIPPeer]] = None, trunks: Optional[List[SIPTrunk]] = None, ring_groups: Optional[List[RingGroup]] = None, ivr_menus: Optional[List[IVRMenu]] = None) -> bool:
-    """Write extensions.conf to shared volume"""
+def write_extensions_config(
+    routes: List[InboundRoute],
+    forwards: Optional[List[CallForward]] = None,
+    mailboxes: Optional[List[VoicemailMailbox]] = None,
+    peers: Optional[List[SIPPeer]] = None,
+    trunks: Optional[List[SIPTrunk]] = None,
+    ring_groups: Optional[List[RingGroup]] = None,
+    ivr_menus: Optional[List[IVRMenu]] = None
+) -> bool:
+    """Write extensions.conf to Asterisk volume"""
     try:
         config_content = generate_extensions_config(routes, forwards, mailboxes, peers, trunks, ring_groups, ivr_menus)
-
         os.makedirs(os.path.dirname(EXTENSIONS_CONFIG_PATH), exist_ok=True)
-
-        with open(EXTENSIONS_CONFIG_PATH, 'w') as f:
+        with open(EXTENSIONS_CONFIG_PATH, "w") as f:
             f.write(config_content)
-
         logger.info(f"extensions.conf written with {len(routes)} inbound routes")
         return True
-
     except Exception as e:
         logger.error(f"Failed to write extensions.conf: {e}")
         return False
@@ -431,14 +459,12 @@ def reload_dialplan() -> bool:
             text=True,
             timeout=10
         )
-
         if result.returncode == 0:
             logger.info("Asterisk dialplan reloaded successfully")
             return True
         else:
             logger.error(f"Dialplan reload failed: {result.stderr}")
             return False
-
     except Exception as e:
         logger.error(f"Failed to reload dialplan: {e}")
         return False
