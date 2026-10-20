@@ -20,6 +20,7 @@ services:
       - pbx_network
     command: >
       sh -c "
+        for f in /etc/asterisk/custom/*.conf.default; do [ -f \"$${f%.default}\" ] || cp \"$$f\" \"$${f%.default}\"; done;
         cp /etc/asterisk/custom/*.conf /etc/asterisk/ 2>/dev/null || true;
         /usr/sbin/asterisk -f
       "

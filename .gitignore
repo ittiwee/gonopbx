@@ -56,6 +56,9 @@ asterisk/config/manager.conf
 AGENT.md
 PROJECT_MEMORY.md
 asterisk/config/pjsip_peers.conf
+asterisk/config/queues.conf
+asterisk/config/voicemail.conf
+asterisk/config/acl.conf
 
 # Editor/backup leftovers
 *.bak
