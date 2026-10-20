@@ -3,7 +3,7 @@ Asterisk PBX GUI - Backend API
 FastAPI application with Asterisk AMI integration
 """
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, Query
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import asyncio
@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 # Import our modules
 import os
+import re
 from ami_client import AsteriskAMIClient
 from database import engine, Base
 from routers import peers, trunks, routes, dashboard, cdr, voicemail, callforward, groups, ivr, contacts
@@ -451,20 +452,37 @@ async def originate_call(
     if not ami_client or not ami_client.connected:
         raise HTTPException(status_code=503, detail="Asterisk not connected")
 
+    # Reject anything that is not a plain dial string (also prevents AMI header injection)
+    if not re.fullmatch(r"[0-9]{2,8}", req.extension):
+        raise HTTPException(status_code=400, detail="Invalid extension")
+    if not re.fullmatch(r"\+?[0-9*#]{1,20}", req.number):
+        raise HTTPException(status_code=400, detail="Invalid number")
+
     try:
         response = await ami_client.send_action(
             'Originate',
             Channel=f'PJSIP/{req.extension}',
             Exten=req.number,
-            Context='from-internal',
+            Context='internal',
             Priority='1',
             CallerID=req.extension,
             Timeout='30000',
             Async='true',
         )
-        return {"status": "ok", "message": f"Calling {req.number} from {req.extension}"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+    # With Async, panoramisk returns the Response plus the OriginateResponse event
+    messages = response if isinstance(response, list) else [response]
+    for msg in messages:
+        if msg.get('Response') == 'Error':
+            raise HTTPException(status_code=400, detail=msg.get('Message', 'Originate failed'))
+        if msg.get('Event') == 'OriginateResponse' and msg.get('Response') == 'Failure':
+            reasons = {'0': 'is not registered or unreachable', '1': 'hung up', '3': 'did not answer',
+                       '5': 'is busy', '8': 'is congested'}
+            reason = reasons.get(str(msg.get('Reason')), 'could not be reached')
+            raise HTTPException(status_code=409, detail=f"Extension {req.extension} {reason}")
+    return {"status": "ok", "message": f"Calling {req.number} from {req.extension}"}
 
 
 # Active calls endpoint
